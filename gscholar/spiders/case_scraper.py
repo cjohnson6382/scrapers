@@ -21,11 +21,10 @@ class CaseScraperSpider(CrawlSpider):
 	both_citations = {}
 
 	def parse(self, response):
-		# grab a bunch of citations from the database, then put them into the citations variable
+		# grab a bunch of citations from the database--only ones that don't use the special LEXIS citation notation--then put them into the citations variable
 		self.cursor.execute("""select citation from cases where citation not like '%LEXIS%' and case_text is NULL limit 1000""")
 		citations = self.cursor.fetchall()
 
-		# run through the citations, make a stripped-down version of them, and put them into the dict both_citations{}
 		for citation in citations:
 			# strip all the junk characters out of the citation and put it into the both_citations{} dict
 			fixed_citation = re.sub(r'[\s|\.]', r'', citation[0])
@@ -39,7 +38,6 @@ class CaseScraperSpider(CrawlSpider):
 		# extract the citation from the previous page by re.search'ing the URL
 		match = re.search(r'&q=(?P<volume>\d+)\+(?P<reporter>.*?)\+(?P<page>\d+)&hl=', str(response.request))
 
-#		reporter = re.sub(r'[\+|\s|\.]', r'', match.group('reporter'))
 		citation_from_url = match.group('volume') + match.group('reporter') + match.group('page')
 		citation_from_url = re.sub(r'[\s|\.|\+]', r'', citation_from_url)
 		
@@ -74,15 +72,4 @@ class CaseScraperSpider(CrawlSpider):
 		# get the entire text of the case
 		case_text = ''.join(hxs.select('//div[@id="gsl_opinion"]').extract()).encode('utf8')
 
-		# serialize the case into a json object
-#		json_case = json.dumps(''.join(case_text))
-
-
-		# create a new item
-#		case = GscholarItem()
-		# assign the citation and the json object to the case
-		#	there is no point in doing this right now
-#		(case['citation'], case['body']) = (citation_from_url, json_case)
-
-#	print self.both_citations[citation_from_url]
 		self.cursor.execute("""update cases set case_text = %s where citation like %s""", (case_text, self.both_citations[citation_from_url]))
